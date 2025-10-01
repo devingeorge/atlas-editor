@@ -14,9 +14,10 @@ class OAuthService {
 
   // Generate OAuth authorization URL
   getAuthorizationUrl(state) {
+    // Try bot-only approach first
     const params = new URLSearchParams({
       client_id: this.clientId,
-      scope: 'users.profile:read,users.profile:write',
+      scope: 'users:read,team:read',
       redirect_uri: this.redirectUri,
       state: state,
     });
@@ -27,7 +28,7 @@ class OAuthService {
     console.log('Client ID:', this.clientId);
     console.log('Redirect URI:', this.redirectUri);
     console.log('State:', state);
-    console.log('Scopes:', 'users.profile:read,users.profile:write');
+    console.log('Scopes:', 'users:read,team:read (bot-only)');
     console.log('Generated URL:', authUrl);
     console.log('================================');
     
