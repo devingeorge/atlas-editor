@@ -35,17 +35,32 @@ router.get('/slack/authorize', (req, res) => {
     const state = uuidv4();
     req.session.oauthState = state;
     
-    const authUrl = oauthService.getAuthorizationUrl(state);
-    
-    console.log('Generated OAuth URL:', authUrl);
-    console.log('State:', state);
-    
-    res.json({
-      status: 'success',
-      data: {
-        authUrl,
-        state,
-      },
+    // Force session save
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Failed to save session',
+          error: err.message,
+        });
+      }
+      
+      console.log('Session saved successfully, state:', state);
+      console.log('Session ID:', req.sessionID);
+      
+      const authUrl = oauthService.getAuthorizationUrl(state);
+      
+      console.log('Generated OAuth URL:', authUrl);
+      console.log('State:', state);
+      
+      res.json({
+        status: 'success',
+        data: {
+          authUrl,
+          state,
+        },
+      });
     });
   } catch (error) {
     console.error('OAuth authorization error:', error);
@@ -62,7 +77,9 @@ router.get('/slack/callback', async (req, res) => {
   try {
     console.log('OAuth callback received');
     console.log('Query params:', req.query);
+    console.log('Session ID:', req.sessionID);
     console.log('Session state:', req.session.oauthState);
+    console.log('Full session:', req.session);
     
     const { code, state } = req.query;
     
