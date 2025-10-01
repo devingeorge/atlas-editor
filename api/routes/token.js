@@ -120,4 +120,29 @@ router.post('/test', async (req, res) => {
   }
 });
 
+// Debug endpoint to check stored tokens
+router.get('/debug', (req, res) => {
+  try {
+    const sessionId = req.sessionID || 'default';
+    const token = userTokenService.getToken(sessionId);
+    
+    res.json({
+      status: 'success',
+      data: {
+        sessionId,
+        hasToken: !!token,
+        tokenLength: token ? token.length : 0,
+        tokenPrefix: token ? token.substring(0, 10) + '...' : null,
+      },
+    });
+  } catch (error) {
+    console.error('Token debug error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to debug token',
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;
