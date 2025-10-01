@@ -36,12 +36,31 @@ class SlackService {
       let cursor = '';
       
       do {
-        const response = await api.get('/users.list', {
-          params: {
-            limit: 200,
-            cursor: cursor,
-          },
-        });
+        const params = {
+          limit: 200,
+          cursor: cursor,
+        };
+        
+        // For Enterprise Grid, we might need to specify team_id
+        // Try without team_id first, then with it if it fails
+        let response;
+        try {
+          response = await api.get('/users.list', { params });
+        } catch (error) {
+          if (error.response?.data?.error === 'missing_argument') {
+            console.log('🔍 Web API - missing_argument, trying with team_id');
+            // Get team info first to get team_id
+            const teamResponse = await api.get('/team.info');
+            if (teamResponse.data.ok) {
+              params.team_id = teamResponse.data.team.id;
+              response = await api.get('/users.list', { params });
+            } else {
+              throw error;
+            }
+          } else {
+            throw error;
+          }
+        }
 
         if (!response.data.ok) {
           throw new Error(response.data.error);
@@ -95,12 +114,18 @@ class SlackService {
 
       console.log('🔍 SlackService.getAllUsers - SCIM API completed, total users:', allUsers.length);
       return allUsers;
-    } catch (error) {
-      console.error('❌ SCIM API failed, falling back to Web API:', error.response?.data || error.message);
-      
-      // Fallback to Web API for regular Slack workspaces
-      return await this.getAllUsersWebApi(userToken);
-    }
+        } catch (error) {
+          console.error('❌ SCIM API failed, falling back to Web API:', error.response?.data || error.message);
+          console.error('❌ SCIM API error details:', {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            message: error.message
+          });
+          
+          // Fallback to Web API for regular Slack workspaces
+          return await this.getAllUsersWebApi(userToken);
+        }
   }
 
   async updateUserManager(userToken, slackUserId, newManagerId) {
