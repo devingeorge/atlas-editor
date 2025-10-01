@@ -5,6 +5,15 @@ const OAuthService = require('../services/oauth');
 
 const oauthService = new OAuthService();
 
+// Test endpoint
+router.get('/test', (req, res) => {
+  res.json({
+    status: 'success',
+    message: 'Auth service is working',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Generate OAuth authorization URL
 router.get('/slack/authorize', (req, res) => {
   try {
@@ -12,6 +21,9 @@ router.get('/slack/authorize', (req, res) => {
     req.session.oauthState = state;
     
     const authUrl = oauthService.getAuthorizationUrl(state);
+    
+    console.log('Generated OAuth URL:', authUrl);
+    console.log('State:', state);
     
     res.json({
       status: 'success',
@@ -33,12 +45,21 @@ router.get('/slack/authorize', (req, res) => {
 // Handle OAuth callback
 router.get('/slack/callback', async (req, res) => {
   try {
+    console.log('OAuth callback received');
+    console.log('Query params:', req.query);
+    console.log('Session state:', req.session.oauthState);
+    
     const { code, state } = req.query;
     
     if (!code) {
+      console.error('No authorization code received');
       return res.status(400).json({
         status: 'error',
         message: 'Authorization code is required',
+        debug: {
+          query: req.query,
+          sessionState: req.session.oauthState,
+        },
       });
     }
 
