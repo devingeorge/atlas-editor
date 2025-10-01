@@ -36,7 +36,6 @@ services:
     env: static
     buildCommand: cd app && npm install && npm run build
     staticPublishPath: app/dist
-    plan: free
     envVars:
       - key: VITE_API_URL
         sync: false
