@@ -146,17 +146,31 @@ function App() {
 
   const handleSync = async () => {
     try {
+      console.log('🔍 Frontend - Sync button pressed');
       setLoading(true);
+      
+      // Get token from localStorage
+      const userToken = localStorage.getItem('slack_user_token');
+      console.log('🔍 Frontend - Token from localStorage:', userToken ? userToken.substring(0, 10) + '...' : 'none');
+      
+      if (!userToken) {
+        throw new Error('No token found in localStorage');
+      }
+      
+      console.log('🔍 Frontend - Sending sync request with token header');
       await axios.post(`${API_BASE_URL}/sync/full`, {}, {
-        withCredentials: true,
+        headers: {
+          'X-Slack-Token': userToken,
+        },
       });
       
+      console.log('🔍 Frontend - Sync completed, refreshing data');
       // Refresh all data
       await initializeApp();
       
       alert('Sync completed successfully');
     } catch (err) {
-      console.error('Failed to sync:', err);
+      console.error('❌ Frontend - Failed to sync:', err);
       setError(err.response?.data?.message || 'Failed to sync data');
     } finally {
       setLoading(false);

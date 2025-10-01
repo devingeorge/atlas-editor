@@ -183,6 +183,7 @@ router.post('/profile-schema', requireAuth, async (req, res) => {
 router.post('/full', requireAuth, async (req, res) => {
   try {
     console.log('🔍 Full sync request received');
+    console.log('🔍 Full sync - Request headers:', JSON.stringify(req.headers, null, 2));
     console.log('🔍 Full sync - Token prefix:', req.userToken ? req.userToken.substring(0, 10) + '...' : 'none');
     
     const slack = new SlackService();
