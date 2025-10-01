@@ -143,12 +143,24 @@ async function createTables() {
     CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires_at ON oauth_tokens(expires_at);
   `;
 
+  const createSessionsTable = `
+    CREATE TABLE IF NOT EXISTS user_sessions (
+      sid VARCHAR NOT NULL COLLATE "default",
+      sess JSON NOT NULL,
+      expire TIMESTAMP(6) NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_user_sessions_sid ON user_sessions(sid);
+    CREATE INDEX IF NOT EXISTS idx_user_sessions_expire ON user_sessions(expire);
+  `;
+
   await pool.query(createUsersTable);
   await pool.query(createProfileFieldsTable);
   await pool.query(createDraftChangesTable);
   await pool.query(createAuditLogsTable);
   await pool.query(createLocksTable);
   await pool.query(createOAuthTokensTable);
+  await pool.query(createSessionsTable);
 }
 
 async function query(text, params = []) {
