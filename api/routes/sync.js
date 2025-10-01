@@ -188,7 +188,7 @@ router.post('/full', requireAuth, async (req, res) => {
     const slack = new SlackService();
     
     // Test connection first
-    const isConnected = await slack.testConnection(req.userToken);
+    const isConnected = await slack.testToken(req.userToken);
     console.log('🔍 Full sync - Slack connection test result:', isConnected);
     if (!isConnected) {
       console.log('❌ Full sync - Slack connection failed');
