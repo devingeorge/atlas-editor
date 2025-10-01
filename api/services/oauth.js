@@ -14,10 +14,10 @@ class OAuthService {
 
   // Generate OAuth authorization URL
   getAuthorizationUrl(state) {
-    // Try bot-only approach first
+    // Use user scopes since they're configured in the app
     const params = new URLSearchParams({
       client_id: this.clientId,
-      scope: 'users:read,team:read',
+      scope: 'users.profile:read,users.profile:write',
       redirect_uri: this.redirectUri,
       state: state,
     });
@@ -28,7 +28,7 @@ class OAuthService {
     console.log('Client ID:', this.clientId);
     console.log('Redirect URI:', this.redirectUri);
     console.log('State:', state);
-    console.log('Scopes:', 'users:read,team:read (bot-only)');
+    console.log('Scopes:', 'users.profile:read,users.profile:write (user scopes)');
     console.log('Generated URL:', authUrl);
     console.log('================================');
     
@@ -43,6 +43,7 @@ class OAuthService {
       console.log('Client ID:', this.clientId);
       console.log('Redirect URI:', this.redirectUri);
       
+      // Use the correct OAuth endpoint for user tokens
       const response = await axios.post('https://slack.com/api/oauth.v2.access', {
         client_id: this.clientId,
         client_secret: this.clientSecret,
