@@ -1,0 +1,34 @@
+display_information:
+  name: "Atlas Editor"
+  description: "Interactive org chart editor for Slack organizations"
+  background_color: "#2c2d30"
+  long_description: |
+    Atlas Editor provides a visual, interactive way to manage your Slack organization structure. Features include:
+
+    • Interactive org chart visualization
+    • Drag-and-drop manager relationship changes
+    • Profile field editing with real-time sync
+    • Staged changes with preview and undo
+    • Complete audit logging
+
+    Perfect for HR teams, managers, and administrators who need to maintain accurate organizational data in Slack.
+
+features:
+  bot_user:
+    display_name: "Atlas Editor"
+    always_online: true
+
+oauth_config:
+  redirect_urls:
+    - "https://your-domain.com/auth/slack/callback"
+    - "http://localhost:3001/auth/slack/callback"
+  scopes:
+    user:
+      - "users.profile:read"
+      - "users.profile:write"
+    bot:
+      - "users:read"
+      - "users:read.email"
+      - "team:read"
+      - "users.profile:read"
+      - "users.profile:write"

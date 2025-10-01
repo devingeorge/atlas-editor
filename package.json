@@ -1,0 +1,35 @@
+{
+  "name": "atlas-editor",
+  "version": "1.0.0",
+  "description": "Slack Atlas-style org chart editor",
+  "main": "api/server.js",
+  "scripts": {
+    "start": "node api/server.js",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:app\"",
+    "dev:api": "nodemon api/server.js",
+    "dev:app": "cd app && npm run dev",
+    "build": "cd app && npm run build",
+    "setup": "npm install && cd app && npm install"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3",
+    "node-cache": "^5.1.2",
+    "axios": "^1.6.2",
+    "express-rate-limit": "^7.1.5",
+    "express-session": "^1.17.3",
+    "connect-pg-simple": "^9.0.1",
+    "uuid": "^9.0.1",
+    "joi": "^17.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "concurrently": "^8.2.2"
+  },
+  "keywords": ["slack", "org-chart", "scim", "atlas"],
+  "author": "",
+  "license": "MIT"
+}
