@@ -34,6 +34,9 @@ router.get('/slack/authorize', (req, res) => {
   try {
     const state = uuidv4();
     
+    console.log('=== OAuth URL Generation Request ===');
+    console.log('Request headers:', req.headers);
+    console.log('Request IP:', req.ip);
     console.log('Generated state:', state);
     
     const authUrl = oauthService.getAuthorizationUrl(state);

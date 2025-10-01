@@ -8,6 +8,7 @@ class OAuthService {
     this.clientSecret = process.env.SLACK_CLIENT_SECRET;
     this.redirectUri = process.env.SLACK_REDIRECT_URI || 'http://localhost:3001/auth/slack/callback';
     this.encryptionKey = process.env.SESSION_SECRET || 'fallback-secret-key';
+    this.usedCodes = new Set(); // Track used codes
     
     if (!this.clientId || !this.clientSecret) {
       throw new Error('SLACK_CLIENT_ID and SLACK_CLIENT_SECRET environment variables are required');
@@ -92,6 +93,11 @@ class OAuthService {
       console.log('Client ID:', this.clientId);
       console.log('Redirect URI:', this.redirectUri);
       
+      // Check if code has already been used
+      if (this.usedCodes.has(code)) {
+        throw new Error('Authorization code has already been used');
+      }
+      
       // Use the correct OAuth endpoint for user tokens
       const response = await axios.post('https://slack.com/api/oauth.v2.access', {
         client_id: this.clientId,
@@ -106,6 +112,9 @@ class OAuthService {
         console.error('OAuth token exchange failed:', response.data);
         throw new Error(response.data.error || 'OAuth token exchange failed');
       }
+
+      // Mark code as used
+      this.usedCodes.add(code);
 
       const tokenData = {
         accessToken: response.data.access_token,
