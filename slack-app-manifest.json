@@ -23,7 +23,6 @@
       ],
       "bot": [
         "users:read",
-        "users:read.email",
         "team:read",
         "users.profile:read",
         "users.profile:write"
