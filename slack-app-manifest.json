@@ -23,9 +23,7 @@
       ],
       "bot": [
         "users:read",
-        "team:read",
-        "users.profile:read",
-        "users.profile:write"
+        "team:read"
       ]
     }
   }
