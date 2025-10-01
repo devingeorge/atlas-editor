@@ -46,17 +46,17 @@ function TokenInput({ onTokenSet }) {
     setError(null);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/token`, {
+      const response = await axios.post(`${API_BASE_URL}/api/token/test`, {
         token: token.trim(),
-      }, {
-        withCredentials: true,
       });
 
-      if (response.data.status === 'success') {
+      if (response.data.data.valid) {
+        // Store token in localStorage instead of session
+        localStorage.setItem('slack_user_token', token.trim());
         alert('✅ Token saved successfully!');
         onTokenSet();
       } else {
-        setError(response.data.message || 'Failed to save token');
+        setError('❌ Invalid token. Please check your Slack user token.');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save token');

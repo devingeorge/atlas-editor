@@ -34,29 +34,44 @@ function App() {
       setLoading(true);
       setError(null);
 
-      // Bootstrap the app
-      const bootstrapResponse = await axios.get(`${API_BASE_URL}/api/bootstrap`, {
-        withCredentials: true,
-      });
-      setBootstrap(bootstrapResponse.data.data);
-
-      // Check if user has a token
-      if (!bootstrapResponse.data.data.auth.isAuthenticated) {
+      // Check if user has a token in localStorage
+      const userToken = localStorage.getItem('slack_user_token');
+      if (!userToken) {
         setNeedsToken(true);
         setLoading(false);
         return;
       }
 
+      // Bootstrap the app with token in header
+      const bootstrapResponse = await axios.get(`${API_BASE_URL}/api/bootstrap`, {
+        headers: {
+          'X-Slack-Token': userToken,
+        },
+      });
+      setBootstrap(bootstrapResponse.data.data);
+
       // Load org chart data
-      const orgResponse = await axios.get(`${API_BASE_URL}/api/org`);
+      const orgResponse = await axios.get(`${API_BASE_URL}/api/org`, {
+        headers: {
+          'X-Slack-Token': userToken,
+        },
+      });
       setOrgData(orgResponse.data.data);
 
       // Load profile schema
-      const schemaResponse = await axios.get(`${API_BASE_URL}/api/profile-schema`);
+      const schemaResponse = await axios.get(`${API_BASE_URL}/api/profile-schema`, {
+        headers: {
+          'X-Slack-Token': userToken,
+        },
+      });
       setProfileSchema(schemaResponse.data.data);
 
       // Load staged changes
-      const diffResponse = await axios.get(`${API_BASE_URL}/api/diff`);
+      const diffResponse = await axios.get(`${API_BASE_URL}/api/diff`, {
+        headers: {
+          'X-Slack-Token': userToken,
+        },
+      });
       setStagedChanges(diffResponse.data.data);
 
     } catch (err) {
@@ -150,9 +165,8 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await axios.delete(`${API_BASE_URL}/api/token`, {
-        withCredentials: true,
-      });
+      // Clear token from localStorage
+      localStorage.removeItem('slack_user_token');
       
       // Reset app state
       setNeedsToken(true);

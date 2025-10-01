@@ -4,11 +4,7 @@ const router = express.Router();
 // Bootstrap endpoint - returns feature flags, auth user, org name
 router.get('/bootstrap', async (req, res) => {
   try {
-    const UserTokenService = require('../services/userToken');
-    const userTokenService = new UserTokenService();
-    
-    const sessionId = req.sessionID || 'default';
-    const userToken = userTokenService.getToken(sessionId);
+    const userToken = req.headers['x-slack-token'];
     
     // Test Slack connection if token exists
     let isConnected = false;

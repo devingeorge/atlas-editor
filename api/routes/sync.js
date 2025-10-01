@@ -8,9 +8,7 @@ const UserTokenService = require('../services/userToken');
 
 // Helper function to get user token
 function getUserToken(req) {
-  const userTokenService = new UserTokenService();
-  const sessionId = req.sessionID || 'default';
-  return userTokenService.getToken(sessionId);
+  return req.headers['x-slack-token'];
 }
 
 // Helper function to check authentication
