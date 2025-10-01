@@ -11,7 +11,7 @@ router.get('/bootstrap', async (req, res) => {
     if (userToken) {
       const SlackService = require('../services/slack');
       const slack = new SlackService();
-      isConnected = await slack.testConnection(userToken);
+      isConnected = await slack.testToken(userToken);
     }
     
     res.json({

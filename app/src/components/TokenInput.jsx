@@ -68,22 +68,22 @@ function TokenInput({ onTokenSet }) {
   return (
     <div className="token-input-container">
       <div className="token-input-card">
-        <h2>🔑 Slack User Token Required</h2>
+        <h2>🔑 Slack Token Required</h2>
         <p>
-          To use Atlas Editor, you need to provide your Slack user token. 
+          To use Atlas Editor, you need to provide your Slack token. 
           This allows the app to read and edit your organization's data.
         </p>
         
         <div className="token-input-section">
           <label htmlFor="token-input">
-            <strong>Slack User Token (xoxp-...)</strong>
+            <strong>Slack Token (xoxb-... or xoxp-...)</strong>
           </label>
           <input
             id="token-input"
             type="password"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder="xoxp-your-slack-user-token-here"
+            placeholder="xoxb-your-bot-token-here or xoxp-your-user-token-here"
             className="token-input"
           />
           
@@ -113,12 +113,13 @@ function TokenInput({ onTokenSet }) {
         </div>
 
         <div className="token-help">
-          <h3>📋 How to get your Slack user token:</h3>
+          <h3>📋 How to get your Slack token:</h3>
           <ol>
             <li>Go to <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">api.slack.com/apps</a></li>
-            <li>Select your workspace</li>
+            <li>Select your Atlas Editor app</li>
             <li>Go to "OAuth & Permissions"</li>
-            <li>Copy your "User OAuth Token" (starts with xoxp-)</li>
+            <li>Copy your "Bot User OAuth Token" (xoxb-...) for org-level access</li>
+            <li>Or copy your "User OAuth Token" (xoxp-...) for workspace-level access</li>
             <li>Paste it above and click "Save Token"</li>
           </ol>
           

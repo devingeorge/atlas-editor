@@ -28,9 +28,45 @@ class SlackService {
     });
   }
 
+  // Web API Methods for regular Slack workspaces (fallback when SCIM not available)
+  async getAllUsersWebApi(userToken) {
+    try {
+      const api = this.getApiClient(userToken);
+      const allUsers = [];
+      let cursor = '';
+      
+      do {
+        const response = await api.get('/users.list', {
+          params: {
+            limit: 200,
+            cursor: cursor,
+          },
+        });
+
+        if (!response.data.ok) {
+          throw new Error(response.data.error);
+        }
+
+        allUsers.push(...response.data.members);
+        cursor = response.data.response_metadata?.next_cursor || '';
+        
+        // Add small delay to avoid rate limiting
+        if (cursor) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } while (cursor);
+
+      return allUsers.filter(user => !user.deleted && !user.is_bot);
+    } catch (error) {
+      console.error('Error fetching Web API users:', error.response?.data || error.message);
+      throw new Error(`Failed to fetch users: ${error.response?.data?.error || error.message}`);
+    }
+  }
+
   // SCIM API Methods (using user token)
   async getAllUsers(userToken) {
     try {
+      // First try SCIM API
       const scimApi = this.getScimApiClient(userToken);
       const allUsers = [];
       let startIndex = 1;
@@ -53,8 +89,10 @@ class SlackService {
 
       return allUsers;
     } catch (error) {
-      console.error('Error fetching SCIM users:', error.response?.data || error.message);
-      throw new Error(`Failed to fetch users: ${error.response?.data?.error || error.message}`);
+      console.error('SCIM API failed, falling back to Web API:', error.response?.data || error.message);
+      
+      // Fallback to Web API for regular Slack workspaces
+      return await this.getAllUsersWebApi(userToken);
     }
   }
 
@@ -154,14 +192,14 @@ class SlackService {
     }
   }
 
-  // Utility methods
-  async testConnection(userToken) {
+  // Test if token is valid (works for both user and bot tokens)
+  async testToken(token) {
     try {
-      const api = this.getApiClient(userToken);
+      const api = this.getApiClient(token);
       const response = await api.get('/auth.test');
       return response.data.ok;
     } catch (error) {
-      console.error('Slack connection test failed:', error.message);
+      console.error('Token test error:', error.response?.data || error.message);
       return false;
     }
   }
