@@ -8,7 +8,7 @@ require('dotenv').config();
 
 const { initializeDatabase } = require('./database');
 const { initializeCache } = require('./cache');
-const authRoutes = require('./routes/auth');
+const tokenRoutes = require('./routes/token');
 const apiRoutes = require('./routes/api');
 const syncRoutes = require('./routes/sync');
 
@@ -65,7 +65,7 @@ app.use(session({
 }));
 
 // Routes
-app.use('/auth', authRoutes);
+app.use('/api/token', tokenRoutes);
 app.use('/api', apiRoutes);
 app.use('/sync', syncRoutes);
 

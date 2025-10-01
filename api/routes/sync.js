@@ -4,20 +4,33 @@ const router = express.Router();
 const { query, transaction } = require('../database');
 const { del, CacheKeys } = require('../cache');
 const SlackService = require('../services/slack');
+const UserTokenService = require('../services/userToken');
+
+// Helper function to get user token
+function getUserToken(req) {
+  const userTokenService = new UserTokenService();
+  const sessionId = req.sessionID || 'default';
+  return userTokenService.getToken(sessionId);
+}
+
+// Helper function to check authentication
+function requireAuth(req, res, next) {
+  const userToken = getUserToken(req);
+  if (!userToken) {
+    return res.status(401).json({
+      status: 'error',
+      message: 'User token required. Please provide your Slack user token.',
+    });
+  }
+  req.userToken = userToken;
+  next();
+}
 
 // Sync SCIM users
-router.post('/scim-users', async (req, res) => {
+router.post('/scim-users', requireAuth, async (req, res) => {
   try {
-    const userId = req.session.slackUserId;
-    if (!userId) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Authentication required',
-      });
-    }
-
     const slack = new SlackService();
-    const users = await slack.getAllScimUsers(userId);
+    const users = await slack.getAllUsers(req.userToken);
     
     let synced = 0;
     let updated = 0;
@@ -93,10 +106,10 @@ router.post('/scim-users', async (req, res) => {
 });
 
 // Sync profile schema
-router.post('/profile-schema', async (req, res) => {
+router.post('/profile-schema', requireAuth, async (req, res) => {
   try {
     const slack = new SlackService();
-    const fields = await slack.getTeamProfile();
+    const fields = await slack.getTeamProfile(req.userToken);
     
     let synced = 0;
     let updated = 0;
@@ -169,20 +182,12 @@ router.post('/profile-schema', async (req, res) => {
 });
 
 // Full sync (both SCIM and profile schema)
-router.post('/full', async (req, res) => {
+router.post('/full', requireAuth, async (req, res) => {
   try {
-    const userId = req.session.slackUserId;
-    if (!userId) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Authentication required',
-      });
-    }
-
     const slack = new SlackService();
     
     // Test connection first
-    const isConnected = await slack.testConnection();
+    const isConnected = await slack.testConnection(req.userToken);
     if (!isConnected) {
       return res.status(500).json({
         status: 'error',
@@ -197,7 +202,7 @@ router.post('/full', async (req, res) => {
 
     // Sync SCIM users
     try {
-      const users = await slack.getAllScimUsers(userId);
+      const users = await slack.getAllUsers(req.userToken);
       
       await transaction(async (client) => {
         for (const scimUser of users) {
@@ -241,7 +246,7 @@ router.post('/full', async (req, res) => {
 
     // Sync profile schema
     try {
-      const fields = await slack.getTeamProfile();
+      const fields = await slack.getTeamProfile(req.userToken);
       
       await transaction(async (client) => {
         for (const field of fields) {

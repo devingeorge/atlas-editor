@@ -1,91 +1,77 @@
 const axios = require('axios');
+const UserTokenService = require('./userToken');
 
 class SlackService {
   constructor() {
-    this.botToken = process.env.SLACK_BOT_TOKEN;
-    
-    if (!this.botToken) {
-      throw new Error('SLACK_BOT_TOKEN environment variable is required');
-    }
+    this.userTokenService = new UserTokenService();
+  }
 
-    this.botApi = axios.create({
+  // Get API client with user token
+  getApiClient(userToken) {
+    return axios.create({
       baseURL: 'https://slack.com/api',
       headers: {
-        'Authorization': `Bearer ${this.botToken}`,
+        'Authorization': `Bearer ${userToken}`,
         'Content-Type': 'application/json',
       },
     });
   }
 
-  // Web API Methods (replacing SCIM API)
-  async getAllUsers() {
+  // Get SCIM API client with user token
+  getScimApiClient(userToken) {
+    return axios.create({
+      baseURL: 'https://api.slack.com/scim/v1',
+      headers: {
+        'Authorization': `Bearer ${userToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  // SCIM API Methods (using user token)
+  async getAllUsers(userToken) {
     try {
+      const scimApi = this.getScimApiClient(userToken);
       const allUsers = [];
-      let cursor = '';
-      
+      let startIndex = 1;
+      const count = 100;
+
       do {
-        const response = await this.botApi.get('/users.list', {
+        const response = await scimApi.get('/Users', {
           params: {
-            limit: 200,
-            cursor: cursor,
+            startIndex,
+            count,
           },
         });
 
-        if (!response.data.ok) {
-          throw new Error(response.data.error);
+        if (response.data.Resources) {
+          allUsers.push(...response.data.Resources);
         }
 
-        allUsers.push(...response.data.members);
-        cursor = response.data.response_metadata?.next_cursor || '';
-        
-        // Add small delay to avoid rate limiting
-        if (cursor) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      } while (cursor);
+        startIndex += count;
+      } while (response.data.Resources && response.data.Resources.length === count);
 
-      return allUsers.filter(user => !user.deleted && !user.is_bot);
+      return allUsers;
     } catch (error) {
-      console.error('Error fetching users:', error.response?.data || error.message);
+      console.error('Error fetching SCIM users:', error.response?.data || error.message);
       throw new Error(`Failed to fetch users: ${error.response?.data?.error || error.message}`);
     }
   }
 
-  async updateUserManager(slackUserId, newManagerId) {
+  async updateUserManager(userToken, slackUserId, newManagerId) {
     try {
-      // Get current profile to preserve other fields
-      const currentProfile = await this.getUserProfile(slackUserId);
+      const scimApi = this.getScimApiClient(userToken);
       
-      // Find manager field ID from team profile
-      const teamProfile = await this.getTeamProfile();
-      const managerField = teamProfile.find(field => 
-        field.label?.toLowerCase().includes('manager') || 
-        field.label?.toLowerCase().includes('supervisor') ||
-        field.id === 'Xf1234567890' // This would be the actual manager field ID
-      );
+      // Get current user data
+      const userResponse = await scimApi.get(`/Users/${slackUserId}`);
+      const userData = userResponse.data;
 
-      if (!managerField) {
-        throw new Error('Manager field not found in team profile');
-      }
-
-      // Update manager field
-      const updatedFields = {
-        ...currentProfile.fields,
-        [managerField.id]: {
-          value: newManagerId,
-        },
+      // Update manager
+      userData.manager = {
+        value: newManagerId,
       };
 
-      const response = await this.botApi.post('/users.profile.set', {
-        user: slackUserId,
-        profile: {
-          fields: updatedFields,
-        },
-      });
-
-      if (!response.data.ok) {
-        throw new Error(response.data.error);
-      }
+      const response = await scimApi.put(`/Users/${slackUserId}`, userData);
 
       return response.data;
     } catch (error) {
@@ -94,10 +80,11 @@ class SlackService {
     }
   }
 
-  // Web API Methods
-  async getTeamProfile() {
+  // Web API Methods (using user token)
+  async getTeamProfile(userToken) {
     try {
-      const response = await this.botApi.get('/team.profile.get');
+      const api = this.getApiClient(userToken);
+      const response = await api.get('/team.profile.get');
       
       if (!response.data.ok) {
         throw new Error(response.data.error);
@@ -110,9 +97,10 @@ class SlackService {
     }
   }
 
-  async getUserProfile(slackUserId) {
+  async getUserProfile(userToken, slackUserId) {
     try {
-      const response = await this.botApi.get('/users.profile.get', {
+      const api = this.getApiClient(userToken);
+      const response = await api.get('/users.profile.get', {
         params: { user: slackUserId },
       });
 
@@ -127,9 +115,10 @@ class SlackService {
     }
   }
 
-  async updateUserProfile(slackUserId, profileFields) {
+  async updateUserProfile(userToken, slackUserId, profileFields) {
     try {
-      const response = await this.botApi.post('/users.profile.set', {
+      const api = this.getApiClient(userToken);
+      const response = await api.post('/users.profile.set', {
         user: slackUserId,
         profile: {
           fields: profileFields,
@@ -147,9 +136,10 @@ class SlackService {
     }
   }
 
-  async getUserInfo(slackUserId) {
+  async getUserInfo(userToken, slackUserId) {
     try {
-      const response = await this.botApi.get('/users.info', {
+      const api = this.getApiClient(userToken);
+      const response = await api.get('/users.info', {
         params: { user: slackUserId },
       });
 
@@ -165,9 +155,10 @@ class SlackService {
   }
 
   // Utility methods
-  async testConnection() {
+  async testConnection(userToken) {
     try {
-      const response = await this.botApi.get('/auth.test');
+      const api = this.getApiClient(userToken);
+      const response = await api.get('/auth.test');
       return response.data.ok;
     } catch (error) {
       console.error('Slack connection test failed:', error.message);

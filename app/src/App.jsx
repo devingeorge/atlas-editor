@@ -9,6 +9,7 @@ import OrgChart from './components/OrgChart';
 import ProfilePanel from './components/ProfilePanel';
 import DiffBar from './components/DiffBar';
 import LoadingSpinner from './components/LoadingSpinner';
+import TokenInput from './components/TokenInput';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -21,6 +22,7 @@ function App() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [stagedChanges, setStagedChanges] = useState([]);
   const [bootstrap, setBootstrap] = useState(null);
+  const [needsToken, setNeedsToken] = useState(false);
 
   // Initialize app
   useEffect(() => {
@@ -32,21 +34,18 @@ function App() {
       setLoading(true);
       setError(null);
 
-      // Check authentication first
-      const authResponse = await axios.get(`${API_BASE_URL}/auth/me`, {
+      // Bootstrap the app
+      const bootstrapResponse = await axios.get(`${API_BASE_URL}/api/bootstrap`, {
         withCredentials: true,
       });
+      setBootstrap(bootstrapResponse.data.data);
 
-      if (!authResponse.data.data) {
-        // Not authenticated, redirect to OAuth
-        const authUrlResponse = await axios.get(`${API_BASE_URL}/auth/slack/authorize`);
-        window.location.href = authUrlResponse.data.data.authUrl;
+      // Check if user has a token
+      if (!bootstrapResponse.data.data.auth.isAuthenticated) {
+        setNeedsToken(true);
+        setLoading(false);
         return;
       }
-
-      // Bootstrap the app
-      const bootstrapResponse = await axios.get(`${API_BASE_URL}/api/bootstrap`);
-      setBootstrap(bootstrapResponse.data.data);
 
       // Load org chart data
       const orgResponse = await axios.get(`${API_BASE_URL}/api/org`);
@@ -62,17 +61,7 @@ function App() {
 
     } catch (err) {
       console.error('Failed to initialize app:', err);
-      if (err.response?.status === 401) {
-        // Authentication failed, redirect to OAuth
-        try {
-          const authUrlResponse = await axios.get(`${API_BASE_URL}/auth/slack/authorize`);
-          window.location.href = authUrlResponse.data.data.authUrl;
-        } catch (authErr) {
-          setError('Authentication failed. Please try again.');
-        }
-      } else {
-        setError(err.response?.data?.message || 'Failed to load application data');
-      }
+      setError(err.response?.data?.message || 'Failed to load application data');
     } finally {
       setLoading(false);
     }
@@ -161,21 +150,34 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await axios.post(`${API_BASE_URL}/auth/logout`, {}, {
+      await axios.delete(`${API_BASE_URL}/api/token`, {
         withCredentials: true,
       });
       
-      // Redirect to OAuth
-      const authUrlResponse = await axios.get(`${API_BASE_URL}/auth/slack/authorize`);
-      window.location.href = authUrlResponse.data.data.authUrl;
+      // Reset app state
+      setNeedsToken(true);
+      setBootstrap(null);
+      setOrgData([]);
+      setProfileSchema([]);
+      setStagedChanges([]);
+      setSelectedUser(null);
     } catch (err) {
       console.error('Failed to logout:', err);
       setError('Failed to logout');
     }
   };
 
+  const handleTokenSet = () => {
+    setNeedsToken(false);
+    initializeApp();
+  };
+
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (needsToken) {
+    return <TokenInput onTokenSet={handleTokenSet} />;
   }
 
   if (error) {

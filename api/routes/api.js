@@ -4,24 +4,32 @@ const router = express.Router();
 // Bootstrap endpoint - returns feature flags, auth user, org name
 router.get('/bootstrap', async (req, res) => {
   try {
-    const SlackService = require('../services/slack');
-    const slack = new SlackService();
+    const UserTokenService = require('../services/userToken');
+    const userTokenService = new UserTokenService();
     
-    // Test Slack connection
-    const isConnected = await slack.testConnection();
+    const sessionId = req.sessionID || 'default';
+    const userToken = userTokenService.getToken(sessionId);
+    
+    // Test Slack connection if token exists
+    let isConnected = false;
+    if (userToken) {
+      const SlackService = require('../services/slack');
+      const slack = new SlackService();
+      isConnected = await slack.testConnection(userToken);
+    }
     
     res.json({
       status: 'success',
       data: {
         features: {
-          scimEnabled: !!process.env.SCIM_TOKEN,
-          profileEditing: true,
-          managerChanges: true,
+          scimEnabled: !!userToken,
+          profileEditing: !!userToken,
+          managerChanges: !!userToken,
           auditLogging: true,
         },
         auth: {
-          isAuthenticated: !!req.session.slackUserId,
-          userId: req.session.slackUserId || null,
+          isAuthenticated: !!userToken,
+          hasToken: !!userToken,
         },
         org: {
           name: process.env.SLACK_WORKSPACE_NAME || 'Slack Workspace',
