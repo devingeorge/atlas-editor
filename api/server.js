@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
+const pgSession = require('connect-pg-simple')(session);
 require('dotenv').config();
 
 const { initializeDatabase } = require('./database');
@@ -44,8 +45,12 @@ app.use('/api', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
+// Session configuration with PostgreSQL store
 app.use(session({
+  store: new pgSession({
+    conString: process.env.DATABASE_URL,
+    tableName: 'user_sessions',
+  }),
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
   saveUninitialized: false,
