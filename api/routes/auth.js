@@ -33,34 +33,17 @@ router.get('/debug', (req, res) => {
 router.get('/slack/authorize', (req, res) => {
   try {
     const state = uuidv4();
-    req.session.oauthState = state;
     
-    // Force session save
-    req.session.save((err) => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.status(500).json({
-          status: 'error',
-          message: 'Failed to save session',
-          error: err.message,
-        });
-      }
-      
-      console.log('Session saved successfully, state:', state);
-      console.log('Session ID:', req.sessionID);
-      
-      const authUrl = oauthService.getAuthorizationUrl(state);
-      
-      console.log('Generated OAuth URL:', authUrl);
-      console.log('State:', state);
-      
-      res.json({
-        status: 'success',
-        data: {
-          authUrl,
-          state,
-        },
-      });
+    console.log('Generated state:', state);
+    
+    const authUrl = oauthService.getAuthorizationUrl(state);
+    
+    res.json({
+      status: 'success',
+      data: {
+        authUrl,
+        state,
+      },
     });
   } catch (error) {
     console.error('OAuth authorization error:', error);
@@ -77,9 +60,6 @@ router.get('/slack/callback', async (req, res) => {
   try {
     console.log('OAuth callback received');
     console.log('Query params:', req.query);
-    console.log('Session ID:', req.sessionID);
-    console.log('Session state:', req.session.oauthState);
-    console.log('Full session:', req.session);
     
     const { code, state } = req.query;
     
@@ -90,25 +70,23 @@ router.get('/slack/callback', async (req, res) => {
         message: 'Authorization code is required',
         debug: {
           query: req.query,
-          sessionState: req.session.oauthState,
         },
       });
     }
 
-    // Verify state parameter
-    console.log('State comparison:');
-    console.log('  Received state:', state);
-    console.log('  Session state:', req.session.oauthState);
-    console.log('  States match:', state === req.session.oauthState);
-    
-    if (state !== req.session.oauthState) {
+    // Decrypt and validate state parameter
+    let originalState;
+    try {
+      originalState = oauthService.decryptState(state);
+      console.log('Decrypted state:', originalState);
+    } catch (error) {
+      console.error('State validation error:', error.message);
       return res.status(400).json({
         status: 'error',
-        message: 'Invalid state parameter',
+        message: 'Invalid or expired state parameter',
         debug: {
           receivedState: state,
-          sessionState: req.session.oauthState,
-          statesMatch: state === req.session.oauthState,
+          error: error.message,
         },
       });
     }
@@ -126,9 +104,6 @@ router.get('/slack/callback', async (req, res) => {
     req.session.slackUserId = tokenData.userId;
     req.session.teamId = tokenData.teamId;
     req.session.role = 'editor'; // Default role
-    
-    // Clear OAuth state
-    delete req.session.oauthState;
 
     // Redirect to frontend with success
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';

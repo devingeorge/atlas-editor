@@ -1,25 +1,59 @@
 const axios = require('axios');
 const { query } = require('../database');
+const crypto = require('crypto');
 
 class OAuthService {
   constructor() {
     this.clientId = process.env.SLACK_CLIENT_ID;
     this.clientSecret = process.env.SLACK_CLIENT_SECRET;
     this.redirectUri = process.env.SLACK_REDIRECT_URI || 'http://localhost:3001/auth/slack/callback';
+    this.encryptionKey = process.env.SESSION_SECRET || 'fallback-secret-key';
     
     if (!this.clientId || !this.clientSecret) {
       throw new Error('SLACK_CLIENT_ID and SLACK_CLIENT_SECRET environment variables are required');
     }
   }
 
+  // Encrypt state parameter with timestamp
+  encryptState(state) {
+    const timestamp = Date.now();
+    const data = JSON.stringify({ state, timestamp });
+    const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
+    let encrypted = cipher.update(data, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return encrypted;
+  }
+
+  // Decrypt state parameter and validate timestamp
+  decryptState(encryptedState) {
+    try {
+      const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
+      let decrypted = decipher.update(encryptedState, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      const { state, timestamp } = JSON.parse(decrypted);
+      
+      // Check if state is not older than 10 minutes
+      if (Date.now() - timestamp > 10 * 60 * 1000) {
+        throw new Error('State parameter expired');
+      }
+      
+      return state;
+    } catch (error) {
+      throw new Error('Invalid state parameter');
+    }
+  }
+
   // Generate OAuth authorization URL
   getAuthorizationUrl(state) {
-    // Use bot scopes only - much more reliable and no permission issues
+    // Encrypt the state parameter
+    const encryptedState = this.encryptState(state);
+    
     const params = new URLSearchParams({
       client_id: this.clientId,
       scope: 'users:read,users:read.email,team:read',
       redirect_uri: this.redirectUri,
-      state: state,
+      state: encryptedState,
     });
 
     const authUrl = `https://slack.com/oauth/v2/authorize?${params.toString()}`;
@@ -27,7 +61,8 @@ class OAuthService {
     console.log('=== OAuth URL Generation Debug ===');
     console.log('Client ID:', this.clientId);
     console.log('Redirect URI:', this.redirectUri);
-    console.log('State:', state);
+    console.log('Original State:', state);
+    console.log('Encrypted State:', encryptedState);
     console.log('Scopes:', 'users:read,users:read.email,team:read (bot scopes)');
     console.log('Generated URL:', authUrl);
     console.log('================================');
