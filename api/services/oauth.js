@@ -21,12 +21,27 @@ class OAuthService {
       state: state,
     });
 
-    return `https://slack.com/oauth/v2/authorize?${params.toString()}`;
+    const authUrl = `https://slack.com/oauth/v2/authorize?${params.toString()}`;
+    
+    console.log('=== OAuth URL Generation Debug ===');
+    console.log('Client ID:', this.clientId);
+    console.log('Redirect URI:', this.redirectUri);
+    console.log('State:', state);
+    console.log('Scopes:', 'users.profile:read,users.profile:write');
+    console.log('Generated URL:', authUrl);
+    console.log('================================');
+    
+    return authUrl;
   }
 
   // Exchange authorization code for access token
   async exchangeCodeForToken(code) {
     try {
+      console.log('=== OAuth Token Exchange Debug ===');
+      console.log('Code:', code);
+      console.log('Client ID:', this.clientId);
+      console.log('Redirect URI:', this.redirectUri);
+      
       const response = await axios.post('https://slack.com/api/oauth.v2.access', {
         client_id: this.clientId,
         client_secret: this.clientSecret,
@@ -34,11 +49,14 @@ class OAuthService {
         redirect_uri: this.redirectUri,
       });
 
+      console.log('Slack API Response:', JSON.stringify(response.data, null, 2));
+
       if (!response.data.ok) {
+        console.error('OAuth token exchange failed:', response.data);
         throw new Error(response.data.error || 'OAuth token exchange failed');
       }
 
-      return {
+      const tokenData = {
         accessToken: response.data.access_token,
         refreshToken: response.data.refresh_token,
         tokenType: response.data.token_type || 'Bearer',
@@ -47,6 +65,16 @@ class OAuthService {
         userId: response.data.authed_user?.id,
         teamId: response.data.team?.id,
       };
+
+      console.log('Token data extracted:', {
+        userId: tokenData.userId,
+        teamId: tokenData.teamId,
+        scope: tokenData.scope,
+        hasAccessToken: !!tokenData.accessToken,
+      });
+      console.log('================================');
+
+      return tokenData;
     } catch (error) {
       console.error('OAuth token exchange error:', error.response?.data || error.message);
       throw new Error(`Failed to exchange code for token: ${error.response?.data?.error || error.message}`);

@@ -14,6 +14,21 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Debug endpoint to check OAuth configuration
+router.get('/debug', (req, res) => {
+  res.json({
+    status: 'success',
+    data: {
+      clientId: process.env.SLACK_CLIENT_ID,
+      redirectUri: process.env.SLACK_REDIRECT_URI,
+      frontendUrl: process.env.FRONTEND_URL,
+      hasClientSecret: !!process.env.SLACK_CLIENT_SECRET,
+      hasSessionSecret: !!process.env.SESSION_SECRET,
+      environment: process.env.NODE_ENV,
+    },
+  });
+});
+
 // Generate OAuth authorization URL
 router.get('/slack/authorize', (req, res) => {
   try {
