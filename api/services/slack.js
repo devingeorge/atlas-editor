@@ -66,6 +66,7 @@ class SlackService {
   // SCIM API Methods (using user token)
   async getAllUsers(userToken) {
     try {
+      console.log('🔍 SlackService.getAllUsers - Starting SCIM API call');
       // First try SCIM API
       const scimApi = this.getScimApiClient(userToken);
       const allUsers = [];
@@ -73,6 +74,7 @@ class SlackService {
       const count = 100;
 
       do {
+        console.log(`🔍 SlackService.getAllUsers - SCIM API call, startIndex: ${startIndex}`);
         const response = await scimApi.get('/Users', {
           params: {
             startIndex,
@@ -80,16 +82,21 @@ class SlackService {
           },
         });
 
+        console.log('🔍 SlackService.getAllUsers - SCIM API response status:', response.status);
+        console.log('🔍 SlackService.getAllUsers - SCIM API response data:', JSON.stringify(response.data, null, 2));
+
         if (response.data.Resources) {
           allUsers.push(...response.data.Resources);
+          console.log(`🔍 SlackService.getAllUsers - Added ${response.data.Resources.length} users, total: ${allUsers.length}`);
         }
 
         startIndex += count;
       } while (response.data.Resources && response.data.Resources.length === count);
 
+      console.log('🔍 SlackService.getAllUsers - SCIM API completed, total users:', allUsers.length);
       return allUsers;
     } catch (error) {
-      console.error('SCIM API failed, falling back to Web API:', error.response?.data || error.message);
+      console.error('❌ SCIM API failed, falling back to Web API:', error.response?.data || error.message);
       
       // Fallback to Web API for regular Slack workspaces
       return await this.getAllUsersWebApi(userToken);

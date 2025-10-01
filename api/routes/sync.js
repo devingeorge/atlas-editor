@@ -182,11 +182,16 @@ router.post('/profile-schema', requireAuth, async (req, res) => {
 // Full sync (both SCIM and profile schema)
 router.post('/full', requireAuth, async (req, res) => {
   try {
+    console.log('🔍 Full sync request received');
+    console.log('🔍 Full sync - Token prefix:', req.userToken ? req.userToken.substring(0, 10) + '...' : 'none');
+    
     const slack = new SlackService();
     
     // Test connection first
     const isConnected = await slack.testConnection(req.userToken);
+    console.log('🔍 Full sync - Slack connection test result:', isConnected);
     if (!isConnected) {
+      console.log('❌ Full sync - Slack connection failed');
       return res.status(500).json({
         status: 'error',
         message: 'Slack connection failed',
@@ -200,7 +205,9 @@ router.post('/full', requireAuth, async (req, res) => {
 
     // Sync SCIM users
     try {
+      console.log('🔍 Full sync - Starting SCIM user sync');
       const users = await slack.getAllUsers(req.userToken);
+      console.log('🔍 Full sync - SCIM users fetched:', users.length);
       
       await transaction(async (client) => {
         for (const scimUser of users) {
@@ -210,6 +217,8 @@ router.post('/full', requireAuth, async (req, res) => {
           const title = scimUser.title || '';
           const managerId = scimUser.manager?.value || null;
           const active = scimUser.active !== false;
+
+          console.log(`🔍 Full sync - Processing user: ${realName} (${slackUserId})`);
 
           const existingResult = await client.query(
             'SELECT id FROM users WHERE slack_user_id = $1',
@@ -225,6 +234,7 @@ router.post('/full', requireAuth, async (req, res) => {
               WHERE slack_user_id = $7
             `, [email, realName, title, managerId, active, JSON.stringify(scimUser), slackUserId]);
             results.scim.updated++;
+            console.log(`🔍 Full sync - Updated user: ${realName}`);
           } else {
             await client.query(`
               INSERT INTO users (
@@ -233,18 +243,22 @@ router.post('/full', requireAuth, async (req, res) => {
               ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             `, [slackUserId, email, realName, title, managerId, active, JSON.stringify(scimUser)]);
             results.scim.created++;
+            console.log(`🔍 Full sync - Created user: ${realName}`);
           }
           results.scim.synced++;
         }
       });
+      console.log('🔍 Full sync - SCIM sync completed:', results.scim);
     } catch (error) {
-      console.error('SCIM sync failed:', error);
+      console.error('❌ SCIM sync failed:', error);
       results.scim.error = error.message;
     }
 
     // Sync profile schema
     try {
+      console.log('🔍 Full sync - Starting profile schema sync');
       const fields = await slack.getTeamProfile(req.userToken);
+      console.log('🔍 Full sync - Profile fields fetched:', fields.length);
       
       await transaction(async (client) => {
         for (const field of fields) {
@@ -278,8 +292,9 @@ router.post('/full', requireAuth, async (req, res) => {
           results.profile.synced++;
         }
       });
+      console.log('🔍 Full sync - Profile schema sync completed:', results.profile);
     } catch (error) {
-      console.error('Profile schema sync failed:', error);
+      console.error('❌ Profile schema sync failed:', error);
       results.profile.error = error.message;
     }
 
@@ -288,6 +303,7 @@ router.post('/full', requireAuth, async (req, res) => {
     del(CacheKeys.orgChart());
     del(CacheKeys.profileFields());
 
+    console.log('🔍 Full sync - Final results:', results);
     res.json({
       status: 'success',
       data: {
@@ -296,7 +312,7 @@ router.post('/full', requireAuth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Full sync error:', error);
+    console.error('❌ Full sync error:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to perform full sync',

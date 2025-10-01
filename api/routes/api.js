@@ -5,6 +5,8 @@ const router = express.Router();
 router.get('/bootstrap', async (req, res) => {
   try {
     const userToken = req.headers['x-slack-token'];
+    console.log('🔍 Bootstrap request - Token present:', !!userToken);
+    console.log('🔍 Bootstrap request - Token prefix:', userToken ? userToken.substring(0, 10) + '...' : 'none');
     
     // Test Slack connection if token exists
     let isConnected = false;
@@ -12,9 +14,10 @@ router.get('/bootstrap', async (req, res) => {
       const SlackService = require('../services/slack');
       const slack = new SlackService();
       isConnected = await slack.testToken(userToken);
+      console.log('🔍 Bootstrap - Slack connection test result:', isConnected);
     }
     
-    res.json({
+    const response = {
       status: 'success',
       data: {
         features: {
@@ -34,9 +37,12 @@ router.get('/bootstrap', async (req, res) => {
           slackConnected: isConnected,
         },
       },
-    });
+    };
+    
+    console.log('🔍 Bootstrap response:', JSON.stringify(response, null, 2));
+    res.json(response);
   } catch (error) {
-    console.error('Bootstrap error:', error);
+    console.error('❌ Bootstrap error:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to bootstrap application',
@@ -48,12 +54,15 @@ router.get('/bootstrap', async (req, res) => {
 // Get org chart data
 router.get('/org', async (req, res) => {
   try {
+    console.log('🔍 Org chart request received');
     const { query } = require('../database');
     const { get, set, CacheKeys } = require('../cache');
     
     // Check cache first
     const cached = get(CacheKeys.orgChart());
+    console.log('🔍 Org chart - Cache hit:', !!cached);
     if (cached) {
+      console.log('🔍 Org chart - Returning cached data, count:', cached.length);
       return res.json({
         status: 'success',
         data: cached,
@@ -61,6 +70,7 @@ router.get('/org', async (req, res) => {
     }
 
     // Fetch from database
+    console.log('🔍 Org chart - Fetching from database');
     const result = await query(`
       SELECT 
         slack_user_id as id,
@@ -74,6 +84,8 @@ router.get('/org', async (req, res) => {
       ORDER BY real_name
     `);
 
+    console.log('🔍 Org chart - Database query result count:', result.rows.length);
+
     const orgData = result.rows.map(user => ({
       id: user.id,
       name: user.name,
@@ -83,6 +95,8 @@ router.get('/org', async (req, res) => {
       email: user.email,
     }));
 
+    console.log('🔍 Org chart - Processed data count:', orgData.length);
+
     // Cache the result
     set(CacheKeys.orgChart(), orgData, 300); // 5 minutes
 
@@ -91,7 +105,7 @@ router.get('/org', async (req, res) => {
       data: orgData,
     });
   } catch (error) {
-    console.error('Org chart error:', error);
+    console.error('❌ Org chart error:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch org chart',
