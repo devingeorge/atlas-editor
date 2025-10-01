@@ -37,8 +37,6 @@ services:
     name: atlas-editor-db
     env: postgresql
     plan: free
-    databaseName: atlas_editor
-    user: atlas_user
 
   - type: web
     name: atlas-editor-frontend
