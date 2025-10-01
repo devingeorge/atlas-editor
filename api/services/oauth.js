@@ -18,17 +18,31 @@ class OAuthService {
   encryptState(state) {
     const timestamp = Date.now();
     const data = JSON.stringify({ state, timestamp });
-    const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
+    
+    // Create a key from the encryption key
+    const key = crypto.scryptSync(this.encryptionKey, 'salt', 32);
+    const iv = crypto.randomBytes(16);
+    
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
     let encrypted = cipher.update(data, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    return encrypted;
+    
+    // Prepend IV to encrypted data
+    return iv.toString('hex') + ':' + encrypted;
   }
 
   // Decrypt state parameter and validate timestamp
   decryptState(encryptedState) {
     try {
-      const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
-      let decrypted = decipher.update(encryptedState, 'hex', 'utf8');
+      // Split IV and encrypted data
+      const [ivHex, encrypted] = encryptedState.split(':');
+      const iv = Buffer.from(ivHex, 'hex');
+      
+      // Create the same key
+      const key = crypto.scryptSync(this.encryptionKey, 'salt', 32);
+      
+      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
       
       const { state, timestamp } = JSON.parse(decrypted);
