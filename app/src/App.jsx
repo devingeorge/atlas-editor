@@ -158,11 +158,15 @@ function App() {
       }
       
       console.log('🔍 Frontend - Sending sync request with token header');
-      await axios.post(`${API_BASE_URL}/sync/full`, {}, {
+      console.log('🔍 Frontend - Request headers:', { 'X-Slack-Token': userToken.substring(0, 10) + '...' });
+      
+      const response = await axios.post(`${API_BASE_URL}/sync/full`, {}, {
         headers: {
           'X-Slack-Token': userToken,
         },
       });
+      
+      console.log('🔍 Frontend - Sync response:', response.data);
       
       console.log('🔍 Frontend - Sync completed, refreshing data');
       // Refresh all data

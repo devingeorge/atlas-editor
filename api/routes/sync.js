@@ -13,8 +13,15 @@ function getUserToken(req) {
 
 // Helper function to check authentication
 function requireAuth(req, res, next) {
+  console.log('🔍 requireAuth - All headers:', JSON.stringify(req.headers, null, 2));
+  console.log('🔍 requireAuth - Looking for x-slack-token header');
+  
   const userToken = getUserToken(req);
+  console.log('🔍 requireAuth - Token found:', !!userToken);
+  console.log('🔍 requireAuth - Token prefix:', userToken ? userToken.substring(0, 10) + '...' : 'none');
+  
   if (!userToken) {
+    console.log('❌ requireAuth - No token found, returning 401');
     return res.status(401).json({
       status: 'error',
       message: 'User token required. Please provide your Slack user token.',
