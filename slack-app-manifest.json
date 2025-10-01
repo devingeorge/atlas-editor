@@ -20,7 +20,16 @@
       "bot": [
         "users:read",
         "users:read.email",
-        "team:read"
+        "team:read",
+        "users:write",
+        "users.profile:read",
+        "users.profile:write"
+      ],
+      "user": [
+        "users:read",
+        "users:read.email",
+        "users.profile:read",
+        "users.profile:write"
       ]
     }
   }
