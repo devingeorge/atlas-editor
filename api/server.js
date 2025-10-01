@@ -53,12 +53,14 @@ app.use(session({
   }),
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true, // Changed to true to ensure session is created
+  name: 'atlas-editor-session', // Custom session name
   cookie: {
     secure: false, // Disable secure cookies for Render compatibility
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax', // Add sameSite for better compatibility
+    domain: undefined, // Let browser handle domain
   },
 }));
 
