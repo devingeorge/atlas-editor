@@ -79,10 +79,20 @@ router.get('/slack/callback', async (req, res) => {
     }
 
     // Verify state parameter
+    console.log('State comparison:');
+    console.log('  Received state:', state);
+    console.log('  Session state:', req.session.oauthState);
+    console.log('  States match:', state === req.session.oauthState);
+    
     if (state !== req.session.oauthState) {
       return res.status(400).json({
         status: 'error',
         message: 'Invalid state parameter',
+        debug: {
+          receivedState: state,
+          sessionState: req.session.oauthState,
+          statesMatch: state === req.session.oauthState,
+        },
       });
     }
 
