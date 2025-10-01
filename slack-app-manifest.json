@@ -18,6 +18,7 @@
     ],
     "scopes": {
       "bot": [
+        "admin",
         "users:read",
         "users:read.email",
         "team:read",

@@ -43,27 +43,25 @@ class SlackService {
         
         // For Enterprise Grid, we might need to specify team_id
         // Try without team_id first, then with it if it fails
-        let response;
-        try {
-          response = await api.get('/users.list', { params });
-        } catch (error) {
-          if (error.response?.data?.error === 'missing_argument') {
+        let response = await api.get('/users.list', { params });
+
+        if (!response.data.ok) {
+          if (response.data.error === 'missing_argument') {
             console.log('🔍 Web API - missing_argument, trying with team_id');
             // Get team info first to get team_id
             const teamResponse = await api.get('/team.info');
             if (teamResponse.data.ok) {
               params.team_id = teamResponse.data.team.id;
               response = await api.get('/users.list', { params });
+              if (!response.data.ok) {
+                throw new Error(response.data.error);
+              }
             } else {
-              throw error;
+              throw new Error(response.data.error);
             }
           } else {
-            throw error;
+            throw new Error(response.data.error);
           }
-        }
-
-        if (!response.data.ok) {
-          throw new Error(response.data.error);
         }
 
         allUsers.push(...response.data.members);
