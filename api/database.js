@@ -144,7 +144,11 @@ async function createTables() {
   `;
 
   const createSessionsTable = `
-    CREATE TABLE IF NOT EXISTS user_sessions (
+    -- Drop existing table if it exists (to fix schema issues)
+    DROP TABLE IF EXISTS user_sessions;
+    
+    -- Create table with proper schema
+    CREATE TABLE user_sessions (
       sid VARCHAR NOT NULL COLLATE "default",
       sess JSON NOT NULL,
       expire TIMESTAMP(6) NOT NULL,
