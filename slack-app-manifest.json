@@ -17,12 +17,9 @@
       "http://localhost:3001/auth/slack/callback"
     ],
     "scopes": {
-      "user": [
-        "users.profile:read",
-        "users.profile:write"
-      ],
       "bot": [
         "users:read",
+        "users:read.email",
         "team:read"
       ]
     }

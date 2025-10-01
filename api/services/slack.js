@@ -1,10 +1,8 @@
 const axios = require('axios');
-const OAuthService = require('./oauth');
 
 class SlackService {
   constructor() {
     this.botToken = process.env.SLACK_BOT_TOKEN;
-    this.oauthService = new OAuthService();
     
     if (!this.botToken) {
       throw new Error('SLACK_BOT_TOKEN environment variable is required');
@@ -19,82 +17,80 @@ class SlackService {
     });
   }
 
-  // Create SCIM API client with user's OAuth token
-  async createScimApi(userId) {
-    const token = await this.oauthService.getToken(userId);
-    if (!token) {
-      throw new Error('No valid OAuth token found for user');
-    }
-
-    return axios.create({
-      baseURL: 'https://api.slack.com/scim/v1',
-      headers: {
-        'Authorization': `Bearer ${token.access_token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-  }
-
-  // SCIM API Methods (require userId for OAuth token)
-  async getScimUsers(userId, startIndex = 1, count = 200) {
+  // Web API Methods (replacing SCIM API)
+  async getAllUsers() {
     try {
-      const scimApi = await this.createScimApi(userId);
-      const response = await scimApi.get('/Users', {
-        params: {
-          startIndex,
-          count,
-          filter: 'active eq "true"',
-        },
-      });
+      const allUsers = [];
+      let cursor = '';
+      
+      do {
+        const response = await this.botApi.get('/users.list', {
+          params: {
+            limit: 200,
+            cursor: cursor,
+          },
+        });
 
-      return {
-        users: response.data.Resources || [],
-        totalResults: response.data.totalResults || 0,
-        startIndex: response.data.startIndex || 1,
-        itemsPerPage: response.data.itemsPerPage || count,
-      };
+        if (!response.data.ok) {
+          throw new Error(response.data.error);
+        }
+
+        allUsers.push(...response.data.members);
+        cursor = response.data.response_metadata?.next_cursor || '';
+        
+        // Add small delay to avoid rate limiting
+        if (cursor) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } while (cursor);
+
+      return allUsers.filter(user => !user.deleted && !user.is_bot);
     } catch (error) {
-      console.error('Error fetching SCIM users:', error.response?.data || error.message);
-      throw new Error(`Failed to fetch SCIM users: ${error.response?.data?.detail || error.message}`);
+      console.error('Error fetching users:', error.response?.data || error.message);
+      throw new Error(`Failed to fetch users: ${error.response?.data?.error || error.message}`);
     }
   }
 
-  async getAllScimUsers(userId) {
-    const allUsers = [];
-    let startIndex = 1;
-    const count = 200;
-    let hasMore = true;
-
-    while (hasMore) {
-      const result = await this.getScimUsers(userId, startIndex, count);
-      allUsers.push(...result.users);
-      
-      hasMore = result.users.length === count;
-      startIndex += count;
-      
-      // Add small delay to avoid rate limiting
-      if (hasMore) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    return allUsers;
-  }
-
-  async updateUserManager(userId, slackUserId, newManagerId) {
+  async updateUserManager(slackUserId, newManagerId) {
     try {
-      const scimApi = await this.createScimApi(userId);
-      const response = await scimApi.patch(`/Users/${slackUserId}`, {
-        schemas: ['urn:scim:schemas:core:1.0'],
-        manager: {
+      // Get current profile to preserve other fields
+      const currentProfile = await this.getUserProfile(slackUserId);
+      
+      // Find manager field ID from team profile
+      const teamProfile = await this.getTeamProfile();
+      const managerField = teamProfile.find(field => 
+        field.label?.toLowerCase().includes('manager') || 
+        field.label?.toLowerCase().includes('supervisor') ||
+        field.id === 'Xf1234567890' // This would be the actual manager field ID
+      );
+
+      if (!managerField) {
+        throw new Error('Manager field not found in team profile');
+      }
+
+      // Update manager field
+      const updatedFields = {
+        ...currentProfile.fields,
+        [managerField.id]: {
           value: newManagerId,
         },
+      };
+
+      const response = await this.botApi.post('/users.profile.set', {
+        user: slackUserId,
+        profile: {
+          fields: updatedFields,
+        },
       });
+
+      if (!response.data.ok) {
+        throw new Error(response.data.error);
+      }
 
       return response.data;
     } catch (error) {
       console.error('Error updating user manager:', error.response?.data || error.message);
-      throw new Error(`Failed to update manager: ${error.response?.data?.detail || error.message}`);
+      throw new Error(`Failed to update manager: ${error.response?.data?.error || error.message}`);
     }
   }
 

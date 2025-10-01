@@ -14,10 +14,10 @@ class OAuthService {
 
   // Generate OAuth authorization URL
   getAuthorizationUrl(state) {
-    // Use user scopes since they're configured in the app
+    // Use bot scopes only - much more reliable and no permission issues
     const params = new URLSearchParams({
       client_id: this.clientId,
-      scope: 'users.profile:read,users.profile:write',
+      scope: 'users:read,users:read.email,team:read',
       redirect_uri: this.redirectUri,
       state: state,
     });
@@ -28,7 +28,7 @@ class OAuthService {
     console.log('Client ID:', this.clientId);
     console.log('Redirect URI:', this.redirectUri);
     console.log('State:', state);
-    console.log('Scopes:', 'users.profile:read,users.profile:write (user scopes)');
+    console.log('Scopes:', 'users:read,users:read.email,team:read (bot scopes)');
     console.log('Generated URL:', authUrl);
     console.log('================================');
     
