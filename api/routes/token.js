@@ -5,7 +5,7 @@ const UserTokenService = require('../services/userToken');
 const userTokenService = new UserTokenService();
 
 // Store user token
-router.post('/token', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { token } = req.body;
     const sessionId = req.sessionID || 'default';
@@ -48,7 +48,7 @@ router.post('/token', async (req, res) => {
 });
 
 // Get token status
-router.get('/token/status', (req, res) => {
+router.get('/status', (req, res) => {
   try {
     const sessionId = req.sessionID || 'default';
     const token = userTokenService.getToken(sessionId);
@@ -71,7 +71,7 @@ router.get('/token/status', (req, res) => {
 });
 
 // Remove token
-router.delete('/token', (req, res) => {
+router.delete('/', (req, res) => {
   try {
     const sessionId = req.sessionID || 'default';
     userTokenService.removeToken(sessionId);
@@ -91,7 +91,7 @@ router.delete('/token', (req, res) => {
 });
 
 // Test token
-router.post('/token/test', async (req, res) => {
+router.post('/test', async (req, res) => {
   try {
     const { token } = req.body;
 
