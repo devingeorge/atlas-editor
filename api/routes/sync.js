@@ -214,8 +214,10 @@ router.post('/full', requireAuth, async (req, res) => {
     // Sync SCIM users
     try {
       console.log('🔍 Full sync - Starting SCIM user sync');
+      console.log('🔍 Full sync - Calling slack.getAllUsers with token:', req.userToken.substring(0, 10) + '...');
       const users = await slack.getAllUsers(req.userToken);
       console.log('🔍 Full sync - SCIM users fetched:', users.length);
+      console.log('🔍 Full sync - First user sample:', users.length > 0 ? JSON.stringify(users[0], null, 2) : 'No users');
       
       await transaction(async (client) => {
         for (const scimUser of users) {
