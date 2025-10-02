@@ -50,13 +50,17 @@ class SlackService {
             console.log('🔍 Web API - missing_argument, trying with team_id');
             // Get team info first to get team_id
             const teamResponse = await api.get('/team.info');
+            console.log('🔍 Web API - team.info response:', teamResponse.data);
             if (teamResponse.data.ok) {
               params.team_id = teamResponse.data.team.id;
+              console.log('🔍 Web API - Using team_id:', params.team_id);
               response = await api.get('/users.list', { params });
+              console.log('🔍 Web API - users.list with team_id response:', response.data);
               if (!response.data.ok) {
                 throw new Error(response.data.error);
               }
             } else {
+              console.log('❌ Web API - team.info failed:', teamResponse.data.error);
               throw new Error(response.data.error);
             }
           } else {
@@ -89,10 +93,11 @@ class SlackService {
       const allUsers = [];
       let startIndex = 1;
       const count = 100;
+      let response;
 
       do {
         console.log(`🔍 SlackService.getAllUsers - SCIM API call, startIndex: ${startIndex}`);
-        const response = await scimApi.get('/Users', {
+        response = await scimApi.get('/Users', {
           params: {
             startIndex,
             count,
