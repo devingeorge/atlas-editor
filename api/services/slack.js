@@ -153,6 +153,23 @@ class SlackService {
     }
   }
 
+  // Get individual user profile via SCIM API (includes managerId)
+  async getUserProfileScim(userToken, slackUserId) {
+    try {
+      const scimApi = this.getScimApiClient(userToken);
+      const response = await scimApi.get(`/Users/${slackUserId}`);
+      
+      if (!response.data) {
+        throw new Error('No response data');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user profile via SCIM:', error.response?.data || error.message);
+      throw new Error(`Failed to fetch user profile: ${error.response?.data?.error || error.message}`);
+    }
+  }
+
   // Web API Methods (using user token)
   async getTeamProfile(userToken) {
     try {

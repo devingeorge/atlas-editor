@@ -274,9 +274,50 @@ router.post('/full', requireAuth, async (req, res) => {
       });
       console.log('🔍 Full sync - SCIM sync completed:', results.scim);
       
-      // Note: Web API manager sync disabled due to scope issues with user tokens
-      // Manager relationships will need to be handled through SCIM API or bot tokens
-      console.log('🔍 Full sync - Skipping Web API manager sync (scope limitations)');
+      // Get manager relationships using SCIM API
+      console.log('🔍 Full sync - Fetching manager relationships via SCIM API');
+      try {
+        let managerUpdates = 0;
+        await transaction(async (client) => {
+          // Get all users from database to fetch their individual profiles
+          const dbUsers = await client.query('SELECT slack_user_id FROM users WHERE active = true');
+          console.log(`🔍 Full sync - Fetching SCIM profiles for ${dbUsers.rows.length} users`);
+          
+          for (const dbUser of dbUsers.rows) {
+            try {
+              const slackUserId = dbUser.slack_user_id;
+              const scimProfile = await slack.getUserProfileScim(req.userToken, slackUserId);
+              
+              // Extract manager information from SCIM profile
+              let managerId = null;
+              if (scimProfile.manager?.value) {
+                managerId = scimProfile.manager.value;
+              } else if (scimProfile['urn:scim:schemas:extension:enterprise:1.0']?.manager?.managerId) {
+                managerId = scimProfile['urn:scim:schemas:extension:enterprise:1.0'].manager.managerId;
+              }
+              
+              if (managerId) {
+                await client.query(`
+                  UPDATE users SET 
+                    manager_slack_user_id = $1, updated_at = NOW()
+                  WHERE slack_user_id = $2
+                `, [managerId, slackUserId]);
+                
+                managerUpdates++;
+                console.log(`🔍 Full sync - Updated manager for ${slackUserId}: ${managerId}`);
+              }
+              
+              // Add small delay to avoid rate limiting
+              await new Promise(resolve => setTimeout(resolve, 50));
+            } catch (userError) {
+              console.error(`❌ Failed to fetch profile for ${dbUser.slack_user_id}:`, userError.message);
+            }
+          }
+        });
+        console.log(`🔍 Full sync - Manager relationships updated: ${managerUpdates} users`);
+      } catch (managerError) {
+        console.error('❌ SCIM manager relationship sync failed:', managerError);
+      }
       
     } catch (error) {
       console.error('❌ SCIM sync failed:', error);
