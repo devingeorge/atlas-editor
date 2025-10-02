@@ -223,7 +223,17 @@ router.post('/full', requireAuth, async (req, res) => {
         for (const scimUser of users) {
           const slackUserId = scimUser.id;
           const email = scimUser.emails?.[0]?.value || '';
-          const realName = scimUser.displayName || scimUser.name?.formatted || '';
+          
+          // Handle Slack Atlas SCIM data structure
+          let realName = '';
+          if (scimUser.name?.givenName && scimUser.name?.familyName) {
+            realName = `${scimUser.name.givenName} ${scimUser.name.familyName}`.trim();
+          } else if (scimUser.displayName) {
+            realName = scimUser.displayName;
+          } else if (scimUser.name?.formatted) {
+            realName = scimUser.name.formatted;
+          }
+          
           const title = scimUser.title || '';
           const managerId = scimUser.manager?.value || null;
           const active = scimUser.active !== false;
@@ -259,6 +269,34 @@ router.post('/full', requireAuth, async (req, res) => {
         }
       });
       console.log('🔍 Full sync - SCIM sync completed:', results.scim);
+      
+      // For Slack Atlas, we need to get manager relationships from Web API
+      console.log('🔍 Full sync - Fetching manager relationships from Web API');
+      try {
+        const webApiUsers = await slack.getAllUsersWebApi(req.userToken);
+        console.log('🔍 Full sync - Web API users fetched:', webApiUsers.length);
+        
+        await transaction(async (client) => {
+          for (const webUser of webApiUsers) {
+            if (webUser.profile?.manager) {
+              const slackUserId = webUser.id;
+              const managerId = webUser.profile.manager;
+              
+              await client.query(`
+                UPDATE users SET 
+                  manager_slack_user_id = $1, updated_at = NOW()
+                WHERE slack_user_id = $2
+              `, [managerId, slackUserId]);
+              
+              console.log(`🔍 Full sync - Updated manager for ${slackUserId}: ${managerId}`);
+            }
+          }
+        });
+        console.log('🔍 Full sync - Manager relationships updated');
+      } catch (managerError) {
+        console.error('❌ Manager relationship sync failed:', managerError);
+      }
+      
     } catch (error) {
       console.error('❌ SCIM sync failed:', error);
       results.scim.error = error.message;
