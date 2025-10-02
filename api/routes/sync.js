@@ -295,7 +295,24 @@ router.post('/full', requireAuth, async (req, res) => {
           const label = field.label || '';
           const hint = field.hint || '';
           const type = field.type || 'text';
-          const isEditable = !field.options || field.options.length === 0;
+          
+          // For Slack Atlas, only allow editing of core profile fields
+          // Skip fields that are managed by external HRIS or have restricted options
+          const editableFields = [
+            'Display name',
+            'Title', 
+            'Phone',
+            'Skype',
+            'What I do',
+            'Pronouns',
+            'Status'
+          ];
+          
+          const isEditable = editableFields.includes(label) && 
+                           (!field.options || field.options.length === 0) &&
+                           !field.is_hris_managed;
+
+          console.log(`🔍 Profile field: ${label} - Editable: ${isEditable} - Options: ${field.options?.length || 0} - HRIS: ${field.is_hris_managed || false}`);
 
           const existingResult = await client.query(
             'SELECT id FROM profile_fields WHERE slack_field_id = $1',
