@@ -228,10 +228,14 @@ router.post('/full', requireAuth, async (req, res) => {
           let realName = '';
           if (scimUser.name?.givenName && scimUser.name?.familyName) {
             realName = `${scimUser.name.givenName} ${scimUser.name.familyName}`.trim();
+          } else if (scimUser.name?.givenName) {
+            realName = scimUser.name.givenName;
           } else if (scimUser.displayName) {
             realName = scimUser.displayName;
           } else if (scimUser.name?.formatted) {
             realName = scimUser.name.formatted;
+          } else if (scimUser.userName) {
+            realName = scimUser.userName;
           }
           
           const title = scimUser.title || '';
@@ -270,32 +274,9 @@ router.post('/full', requireAuth, async (req, res) => {
       });
       console.log('🔍 Full sync - SCIM sync completed:', results.scim);
       
-      // For Slack Atlas, we need to get manager relationships from Web API
-      console.log('🔍 Full sync - Fetching manager relationships from Web API');
-      try {
-        const webApiUsers = await slack.getAllUsersWebApi(req.userToken);
-        console.log('🔍 Full sync - Web API users fetched:', webApiUsers.length);
-        
-        await transaction(async (client) => {
-          for (const webUser of webApiUsers) {
-            if (webUser.profile?.manager) {
-              const slackUserId = webUser.id;
-              const managerId = webUser.profile.manager;
-              
-              await client.query(`
-                UPDATE users SET 
-                  manager_slack_user_id = $1, updated_at = NOW()
-                WHERE slack_user_id = $2
-              `, [managerId, slackUserId]);
-              
-              console.log(`🔍 Full sync - Updated manager for ${slackUserId}: ${managerId}`);
-            }
-          }
-        });
-        console.log('🔍 Full sync - Manager relationships updated');
-      } catch (managerError) {
-        console.error('❌ Manager relationship sync failed:', managerError);
-      }
+      // Note: Web API manager sync disabled due to scope issues with user tokens
+      // Manager relationships will need to be handled through SCIM API or bot tokens
+      console.log('🔍 Full sync - Skipping Web API manager sync (scope limitations)');
       
     } catch (error) {
       console.error('❌ SCIM sync failed:', error);
